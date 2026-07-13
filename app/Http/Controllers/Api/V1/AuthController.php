@@ -16,7 +16,7 @@ class AuthController extends Controller
     public function register(Request $r, OtpService $otp)
     {
         $v=$r->validate(['username'=>['required','string','min:3','max:80','regex:/^[A-Za-z0-9._-]+$/','unique:users,username'],
-            'phone_e164'=>['required','regex:/^\+[1-9][0-9]{7,14}$/','unique:users,phone_e164'],'password'=>['required','string','min:12','max:128']]);
+            'phone_e164'=>['required','regex:/^\+[1-9][0-9]{7,14}$/','unique:users,phone_e164'],'password'=>['required','string','min:6','max:128']]);
         $user=User::create(['username'=>$v['username'],'phone_e164'=>$v['phone_e164'],'password_hash'=>Hash::make($v['password']),'role'=>'CITIZEN','is_active'=>true]);
         try { $challenge=$otp->create($user,'REGISTER'); }
         catch (\Throwable $e) { $user->delete(); return ApiResponse::error('OTP_DELIVERY_FAILED',$e->getMessage(),503); }
@@ -62,10 +62,12 @@ class AuthController extends Controller
     public function desktopResidentCreate(Request $r)
     {
         $this->mergeLegacyResidentInput($r);
-        $v=$r->validate(['nik'=>'required|string|max:32|unique:residents,nik','family_card_number'=>'sometimes|nullable|string|max:32','full_name'=>'required|string|max:160','birth_place'=>'sometimes|nullable|string|max:120','birth_date'=>'sometimes|nullable|date','gender'=>'sometimes|nullable|in:MALE,FEMALE,Laki-laki,Perempuan','address'=>'required|string|max:2000','religion'=>'sometimes|nullable|string|max:40','marital_status'=>'sometimes|nullable|string|max:40','occupation'=>'sometimes|nullable|string|max:120','nationality'=>'sometimes|string|max:80','id_valid_until'=>'sometimes|nullable|string|max:40','family_relationship'=>'sometimes|nullable|string|max:60','legacy_photo_path'=>'sometimes|nullable|string|max:500','is_active'=>'sometimes|boolean']);
+        $v=$r->validate(['nik'=>'required|string|max:32','family_card_number'=>'sometimes|nullable|string|max:32','full_name'=>'required|string|max:160','birth_place'=>'sometimes|nullable|string|max:120','birth_date'=>'sometimes|nullable|date','gender'=>'sometimes|nullable|in:MALE,FEMALE,Laki-laki,Perempuan','address'=>'required|string|max:2000','religion'=>'sometimes|nullable|string|max:40','marital_status'=>'sometimes|nullable|string|max:40','occupation'=>'sometimes|nullable|string|max:120','nationality'=>'sometimes|string|max:80','id_valid_until'=>'sometimes|nullable|string|max:40','family_relationship'=>'sometimes|nullable|string|max:60','legacy_photo_path'=>'sometimes|nullable|string|max:500','is_active'=>'sometimes|boolean']);
         if(isset($v['gender']))$v['gender']=$this->normalizeDesktopGender($v['gender']);
         if(array_key_exists('id_valid_until',$v))$v['id_valid_until']=$this->normalizeDesktopDate($v['id_valid_until']);
         if(array_key_exists('family_card_number',$v)){ $kk=trim((string)($v['family_card_number']??'')); unset($v['family_card_number']); $v['household_id']=$kk===''?null:$this->ensureDesktopHousehold($kk,$v['address']??'-'); }
+        $existing=DB::table('residents')->where('nik',$v['nik'])->first();
+        if($existing){if($existing->deleted_at===null)return ApiResponse::error('DUPLICATE_NIK','NIK sudah terdaftar.',409);DB::table('residents')->where('id',$existing->id)->update($v+['is_active'=>true,'deleted_at'=>null,'updated_at'=>now()]);return ApiResponse::success(DB::table('residents')->find($existing->id));}
         $id=DB::table('residents')->insertGetId($v+['is_active'=>$v['is_active']??true,'created_at'=>now(),'updated_at'=>now()]);
         return ApiResponse::success(DB::table('residents')->find($id),201);
     }

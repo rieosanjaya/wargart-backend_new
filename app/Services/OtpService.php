@@ -32,6 +32,8 @@ class OtpService
         }
         if ($provider === 'log') {
             Log::info('OTP development dibuat', ['challenge_id'=>$id,'destination_masked'=>$this->mask($user->phone_e164),'otp_code'=>app()->environment('production') && !$allowProductionLog ? null : $code]);
+        } elseif ($provider === 'waha') {
+            $this->sendViaWaha($user->phone_e164, $code);
         } elseif ($provider === 'whatsapp_cloud') {
             $this->sendViaWhatsAppCloud($user->phone_e164, $code);
         } elseif ($provider === 'sms_twilio') {
@@ -56,6 +58,33 @@ class OtpService
     }
     private function hash(string $code): string { return hash_hmac('sha256',$code,(string)config('app.key')); }
     private function mask(string $phone): string { return substr($phone,0,4).str_repeat('*',max(0,strlen($phone)-7)).substr($phone,-3); }
+    private function sendViaWaha(string $phone, string $code): void
+    {
+        $baseUrl = rtrim((string) env('WAHA_BASE_URL', ''), '/');
+        $session = (string) env('WAHA_SESSION', 'default');
+        $apiKey = (string) env('WAHA_API_KEY', '');
+        $path = '/' . ltrim((string) env('WAHA_SEND_TEXT_PATH', '/api/sendText'), '/');
+        if ($baseUrl === '' || $session === '') throw new RuntimeException('Konfigurasi WAHA belum lengkap.');
+
+        $message = str_replace('{code}', $code, (string) env('OTP_WHATSAPP_MESSAGE', 'Kode OTP WargaRT Anda: {code}. Berlaku 5 menit. Jangan berikan kode ini kepada siapa pun.'));
+        $chatId = ltrim($phone, '+') . '@c.us';
+        $request = Http::acceptJson();
+        if ($apiKey !== '') {
+            $request = $request->withHeader('X-Api-Key', $apiKey);
+        }
+
+        $response = $request->post($baseUrl . $path, [
+            'session' => $session,
+            'chatId' => $chatId,
+            'text' => $message,
+        ]);
+
+        if (!$response->successful()) {
+            Log::warning('Gagal mengirim OTP WAHA', ['status'=>$response->status(), 'body'=>$response->json() ?: $response->body()]);
+            throw new RuntimeException('Gagal mengirim OTP WhatsApp.');
+        }
+    }
+
     private function sendViaWhatsAppCloud(string $phone, string $code): void
     {
         $token = (string) env('WHATSAPP_CLOUD_TOKEN', '');

@@ -131,9 +131,14 @@ Langkah deployment yang dilakukan oleh pemilik project:
 | `OTP_TTL_SECONDS` | Tidak | `300` | Masa berlaku OTP. |
 | `OTP_RESEND_COOLDOWN_SECONDS` | Tidak | `60` | Jeda resend OTP. |
 | `OTP_MAX_ATTEMPTS` | Tidak | `5` | Maksimal percobaan OTP. |
-| `OTP_PROVIDER` | Ya | `whatsapp_cloud` / `sms_twilio` / `log` | Untuk publik gunakan `whatsapp_cloud` atau `sms_twilio`; `log` hanya untuk uji privat. |
+| `OTP_PROVIDER` | Ya | `waha` / `whatsapp_cloud` / `sms_twilio` / `log` | Untuk publik gunakan provider pengiriman nyata. `log` hanya untuk uji privat. |
 | `OTP_FIXED_CODE` | Tidak | kosong | Kosongkan di production agar OTP random. Jangan pakai `123456` untuk publik. |
 | `OTP_LOG_ALLOW_PRODUCTION` | Kondisional | `true` saat uji privat | Default `false`. Aktifkan hanya sementara jika Railway production masih memakai `OTP_PROVIDER=log`. |
+| `WAHA_BASE_URL` | Jika WAHA | URL WAHA | Contoh `https://waha-domain.up.railway.app`. |
+| `WAHA_SESSION` | Jika WAHA | `default` | Nama session WAHA yang sudah login/scan QR. |
+| `WAHA_API_KEY` | Jika WAHA memakai API key | secret | Dikirim sebagai header `X-Api-Key`. |
+| `WAHA_SEND_TEXT_PATH` | Tidak | `/api/sendText` | Endpoint kirim pesan WAHA. Ubah hanya jika instance WAHA memakai path berbeda. |
+| `OTP_WHATSAPP_MESSAGE` | Jika WAHA | teks OTP | Gunakan placeholder `{code}`. |
 | `WHATSAPP_CLOUD_TOKEN` | Jika WhatsApp | token Meta | Access token WhatsApp Cloud API. |
 | `WHATSAPP_CLOUD_PHONE_NUMBER_ID` | Jika WhatsApp | dari Meta | Phone Number ID WhatsApp Cloud API. |
 | `WHATSAPP_CLOUD_GRAPH_VERSION` | Tidak | `v21.0` | Versi Graph API. |
@@ -153,4 +158,4 @@ Langkah deployment yang dilakukan oleh pemilik project:
 | `DEMO_ADMIN_PHONE` | Tidak | `+6281234500099` | Hanya data demo. |
 | `DEMO_CITIZEN_PASSWORD` | Tidak | kosong | Hanya untuk seeding non-production. |
 
-Catatan OTP: project ini tidak bergantung pada WAHA lama. Provider `log` cocok untuk uji privat. Untuk publik, gunakan `whatsapp_cloud` dengan WhatsApp Cloud API resmi Meta atau `sms_twilio` untuk SMS. Pastikan `OTP_FIXED_CODE` dikosongkan dan `OTP_LOG_ALLOW_PRODUCTION=false` saat go-live.
+Catatan OTP: Provider `log` cocok untuk uji privat. Untuk publik, gunakan `waha`, `whatsapp_cloud`, atau `sms_twilio`. Jika memakai WAHA, gunakan instance WAHA baru milik sendiri dan session WhatsApp khusus OTP. Pastikan `OTP_FIXED_CODE` dikosongkan dan `OTP_LOG_ALLOW_PRODUCTION=false` saat go-live.

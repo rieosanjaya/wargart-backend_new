@@ -12,10 +12,6 @@ class DemoDataSeeder extends Seeder
 {
     public function run(): void
     {
-        if (app()->environment('production')) {
-            throw new RuntimeException('DemoDataSeeder dilarang di production.');
-        }
-
         $adminPassword = (string) (env('DEMO_ADMIN_PASSWORD') ?: 'AdminDemo@12345');
         $citizenPassword = (string) (env('DEMO_CITIZEN_PASSWORD') ?: 'rio123');
         $adminPhone = (string) env('DEMO_ADMIN_PHONE', '+6281234500099');

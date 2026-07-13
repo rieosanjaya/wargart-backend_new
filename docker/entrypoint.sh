@@ -16,5 +16,8 @@ fi
 
 php artisan optimize:clear
 php artisan migrate --force
+if [ "${SEED_DEMO_DATA:-false}" = "true" ]; then
+  php artisan db:seed --force
+fi
 
 exec "$@"

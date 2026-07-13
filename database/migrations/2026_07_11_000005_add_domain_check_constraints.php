@@ -15,7 +15,9 @@ return new class extends Migration {
         $this->addCheckIfMissing('chk_period_fees', 'ALTER TABLE billing_periods ADD CONSTRAINT chk_period_fees CHECK (rt_fee >= 0 AND waste_fee >= 0)');
         $this->addCheckIfMissing('chk_bill_amounts', 'ALTER TABLE dues_bills ADD CONSTRAINT chk_bill_amounts CHECK (rt_fee >= 0 AND waste_fee >= 0 AND total_amount = rt_fee + waste_fee)');
         $this->addCheckIfMissing('chk_payment_amount', 'ALTER TABLE payment_records ADD CONSTRAINT chk_payment_amount CHECK (amount > 0)');
-        $this->addCheckIfMissing('chk_chat_message_content', "ALTER TABLE chat_messages ADD CONSTRAINT chk_chat_message_content CHECK ((message_type = 'TEXT' AND body IS NOT NULL AND CHAR_LENGTH(TRIM(body)) > 0) OR (message_type = 'FILE' AND media_file_id IS NOT NULL))");
+        // MySQL rejects CHECK constraints that reference a column used by a
+        // foreign-key referential action in some managed environments.
+        // Chat message validity is enforced in the API validation layer.
     }
 
     public function down(): void

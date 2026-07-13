@@ -131,8 +131,19 @@ Langkah deployment yang dilakukan oleh pemilik project:
 | `OTP_TTL_SECONDS` | Tidak | `300` | Masa berlaku OTP. |
 | `OTP_RESEND_COOLDOWN_SECONDS` | Tidak | `60` | Jeda resend OTP. |
 | `OTP_MAX_ATTEMPTS` | Tidak | `5` | Maksimal percobaan OTP. |
-| `OTP_PROVIDER` | Ya | `log` | Untuk uji privat boleh `log`; untuk go-live gunakan adapter OTP produksi. |
+| `OTP_PROVIDER` | Ya | `whatsapp_cloud` / `sms_twilio` / `log` | Untuk publik gunakan `whatsapp_cloud` atau `sms_twilio`; `log` hanya untuk uji privat. |
+| `OTP_FIXED_CODE` | Tidak | kosong | Kosongkan di production agar OTP random. Jangan pakai `123456` untuk publik. |
 | `OTP_LOG_ALLOW_PRODUCTION` | Kondisional | `true` saat uji privat | Default `false`. Aktifkan hanya sementara jika Railway production masih memakai `OTP_PROVIDER=log`. |
+| `WHATSAPP_CLOUD_TOKEN` | Jika WhatsApp | token Meta | Access token WhatsApp Cloud API. |
+| `WHATSAPP_CLOUD_PHONE_NUMBER_ID` | Jika WhatsApp | dari Meta | Phone Number ID WhatsApp Cloud API. |
+| `WHATSAPP_CLOUD_GRAPH_VERSION` | Tidak | `v21.0` | Versi Graph API. |
+| `WHATSAPP_OTP_TEMPLATE_NAME` | Jika WhatsApp | `wargart_otp` | Nama template OTP yang sudah disetujui Meta. |
+| `WHATSAPP_OTP_TEMPLATE_LANGUAGE` | Jika WhatsApp | `id` | Bahasa template. |
+| `WHATSAPP_OTP_TEMPLATE_HAS_BUTTON` | Tidak | `true` | Set `false` jika template OTP tidak memakai tombol copy/open code. |
+| `TWILIO_ACCOUNT_SID` | Jika SMS | dari Twilio | Account SID untuk SMS. |
+| `TWILIO_AUTH_TOKEN` | Jika SMS | dari Twilio | Auth token untuk SMS. |
+| `TWILIO_FROM` | Jika SMS | nomor Twilio | Nomor pengirim SMS. |
+| `OTP_SMS_MESSAGE` | Jika SMS | teks OTP | Gunakan placeholder `{code}`. |
 | `FILESYSTEM_DISK` | Tidak | `local` | Penyimpanan upload. |
 | `APP_STORAGE_ROOT` | Tidak | `/data` | Root storage di container. |
 | `QUEUE_CONNECTION` | Tidak | `database` | Queue driver. |
@@ -142,4 +153,4 @@ Langkah deployment yang dilakukan oleh pemilik project:
 | `DEMO_ADMIN_PHONE` | Tidak | `+6281234500099` | Hanya data demo. |
 | `DEMO_CITIZEN_PASSWORD` | Tidak | kosong | Hanya untuk seeding non-production. |
 
-Catatan OTP: project ini tidak bergantung pada WAHA lama. Provider `log` cocok untuk uji privat karena kode OTP bisa dilihat dari log aplikasi. Untuk go-live publik, pasang adapter OTP milik Anda sendiri tanpa mengubah kontrak API.
+Catatan OTP: project ini tidak bergantung pada WAHA lama. Provider `log` cocok untuk uji privat. Untuk publik, gunakan `whatsapp_cloud` dengan WhatsApp Cloud API resmi Meta atau `sms_twilio` untuk SMS. Pastikan `OTP_FIXED_CODE` dikosongkan dan `OTP_LOG_ALLOW_PRODUCTION=false` saat go-live.

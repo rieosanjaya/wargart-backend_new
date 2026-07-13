@@ -16,7 +16,8 @@ class OtpService
             ->where('last_sent_at', '>', now()->subSeconds((int)env('OTP_RESEND_COOLDOWN_SECONDS', 60)))->exists();
         if ($recent) throw new RuntimeException('Tunggu sebelum meminta OTP kembali.');
         $fixedCode = (string) env('OTP_FIXED_CODE', '');
-        $code = ($fixedCode !== '' && !app()->environment('production'))
+        $allowProductionLog = filter_var(env('OTP_LOG_ALLOW_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN);
+        $code = ($fixedCode !== '' && (!app()->environment('production') || $allowProductionLog))
             ? $fixedCode
             : (app()->environment('testing') ? '123456' : (string)random_int(100000, 999999));
         $id = (string)Str::ulid();
@@ -25,10 +26,10 @@ class OtpService
             'max_attempts'=>(int)env('OTP_MAX_ATTEMPTS',5),'expires_at'=>now()->addSeconds((int)env('OTP_TTL_SECONDS',300)),
             'last_sent_at'=>now(),'created_at'=>now(),'updated_at'=>now()]);
         $provider = env('OTP_PROVIDER', 'log');
-        if ($provider === 'log' && app()->environment('production') && !filter_var(env('OTP_LOG_ALLOW_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN)) {
+        if ($provider === 'log' && app()->environment('production') && !$allowProductionLog) {
             throw new RuntimeException('OTP_PROVIDER=log dilarang di production tanpa OTP_LOG_ALLOW_PRODUCTION=true.');
         }
-        if ($provider === 'log') Log::info('OTP development dibuat', ['challenge_id'=>$id,'destination_masked'=>$this->mask($user->phone_e164),'otp_code'=>app()->environment('production') ? null : $code]);
+        if ($provider === 'log') Log::info('OTP development dibuat', ['challenge_id'=>$id,'destination_masked'=>$this->mask($user->phone_e164),'otp_code'=>app()->environment('production') && !$allowProductionLog ? null : $code]);
         else throw new RuntimeException('OTP provider produksi belum dikonfigurasi.');
         return ['challenge_id'=>$id,'masked_destination'=>$this->mask($user->phone_e164),'expires_in'=>(int)env('OTP_TTL_SECONDS',300)];
     }

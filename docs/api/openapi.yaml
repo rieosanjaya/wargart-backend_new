@@ -1,0 +1,160 @@
+openapi: 3.1.0
+info:
+  title: WargaRT API
+  version: 1.0.0
+  description: API resmi untuk Desktop Admin dan Android Warga. Semua waktu menggunakan UTC ISO-8601.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - {name: Auth}
+  - {name: Citizen}
+  - {name: Admin}
+  - {name: Chat}
+paths:
+  /health/ready:
+    get: {security: [], tags: [Auth], summary: Readiness database, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /auth/register:
+    post:
+      security: []
+      tags: [Auth]
+      summary: Registrasi citizen dan membuat OTP challenge
+      requestBody: {$ref: '#/components/requestBodies/Register'}
+      responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}
+  /auth/login:
+    post:
+      security: []
+      tags: [Auth]
+      summary: Validasi password dan membuat OTP challenge
+      requestBody:
+        content: {application/json: {schema: {type: object, required: [identifier, password], properties: {identifier: {type: string}, password: {type: string, format: password}}}}}
+      responses: {'200': {$ref: '#/components/responses/Success'}, '401': {$ref: '#/components/responses/Error'}}
+  /auth/otp/resend:
+    post: {security: [], tags: [Auth], summary: Kirim ulang OTP, requestBody: {$ref: '#/components/requestBodies/Challenge'}, responses: {'200': {$ref: '#/components/responses/Success'}, '429': {$ref: '#/components/responses/Error'}}}
+  /auth/otp/verify:
+    post:
+      security: []
+      tags: [Auth]
+      summary: Verifikasi OTP dan menerbitkan access/refresh token
+      requestBody:
+        content: {application/json: {schema: {type: object, required: [challenge_id, otp], properties: {challenge_id: {type: string, minLength: 26, maxLength: 26}, otp: {type: string, pattern: '^[0-9]{6}$'}, device_name: {type: string}, device_type: {enum: [ANDROID, DESKTOP, OTHER]}}}}}
+      responses: {'200': {$ref: '#/components/responses/Token'}, '422': {$ref: '#/components/responses/Error'}}
+  /auth/refresh:
+    post: {security: [], tags: [Auth], summary: Rotasi refresh token, requestBody: {content: {application/json: {schema: {type: object, required: [refresh_token], properties: {refresh_token: {type: string}}}}}}, responses: {'200': {$ref: '#/components/responses/Token'}, '401': {$ref: '#/components/responses/Error'}}}
+  /auth/me:
+    get: {tags: [Auth], summary: User aktif, responses: {'200': {$ref: '#/components/responses/Success'}, '401': {$ref: '#/components/responses/Error'}}}
+  /auth/logout:
+    post: {tags: [Auth], summary: Cabut sesi aktif, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /auth/logout-all:
+    post: {tags: [Auth], summary: Cabut seluruh sesi user, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /me/profile:
+    get: {tags: [Citizen], summary: Profil user dan warga, responses: {'200': {$ref: '#/components/responses/Success'}}}
+    patch: {tags: [Citizen], summary: Perbarui profil warga sendiri, requestBody: {$ref: '#/components/requestBodies/JsonObject'}, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /me/resident-profile:
+    post: {tags: [Citizen], summary: Buat profil warga awal untuk akun citizen, requestBody: {$ref: '#/components/requestBodies/ResidentProfile'}, responses: {'201': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}}}
+  /me/resident-link:
+    post: {tags: [Citizen], summary: Tautkan akun ke NIK dan nomor KK, requestBody: {content: {application/json: {schema: {type: object, required: [nik, family_card_number], properties: {nik: {$ref: '#/components/schemas/Nik'}, family_card_number: {$ref: '#/components/schemas/Nik'}}}}}}, responses: {'200': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}}}
+  /me/household:
+    get: {tags: [Citizen], summary: Keluarga akun aktif, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /me/media:
+    post: {tags: [Citizen], summary: Upload file/foto citizen maksimal 10 MB, requestBody: {content: {multipart/form-data: {schema: {type: object, required: [file], properties: {file: {type: string, format: binary}}}}}}, responses: {'201': {$ref: '#/components/responses/Success'}}}
+  /residents/search:
+    get:
+      tags: [Citizen]
+      summary: Cari warga; field citizen dibatasi
+      parameters: [{name: nik, in: query, required: true, schema: {$ref: '#/components/schemas/Nik'}}]
+      responses: {'200': {$ref: '#/components/responses/Success'}, '404': {$ref: '#/components/responses/Error'}}
+  /news:
+    get: {tags: [Citizen], summary: Daftar berita published, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /news/{id}:
+    get: {tags: [Citizen], summary: Detail berita, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /media/{id}:
+    get: {tags: [Citizen], summary: Download media terotorisasi, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Binary file}, '403': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}}}
+  /me/letter-requests:
+    get: {tags: [Citizen], summary: Pengajuan surat sendiri, responses: {'200': {$ref: '#/components/responses/Success'}}}
+    post: {tags: [Citizen], summary: Buat pengajuan surat, requestBody: {content: {application/json: {schema: {type: object, required: [letter_type, purpose], properties: {letter_type: {type: string}, purpose: {type: string}}}}}}, responses: {'201': {$ref: '#/components/responses/Success'}}}
+  /me/letter-requests/{id}:
+    get: {tags: [Citizen], summary: Detail pengajuan sendiri, parameters: [{$ref: '#/components/parameters/Ulid'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /me/dues-bills:
+    get: {tags: [Citizen], summary: Tagihan warga aktif, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /me/notifications:
+    get: {tags: [Citizen], summary: Inbox notifikasi, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /me/notifications/{id}/read:
+    post: {tags: [Citizen], summary: Tandai notifikasi dibaca, parameters: [{$ref: '#/components/parameters/Ulid'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /me/chat-sessions:
+    post: {tags: [Chat], summary: Start atau resume chat, responses: {'200': {$ref: '#/components/responses/Success'}, '201': {$ref: '#/components/responses/Success'}}}
+  /me/chat-sessions/current:
+    get: {tags: [Chat], summary: Chat aktif citizen, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /chat-sessions/{id}/messages:
+    get: {tags: [Chat], summary: Pesan sesi untuk participant, parameters: [{$ref: '#/components/parameters/Ulid'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+    post: {tags: [Chat], summary: Kirim pesan, parameters: [{$ref: '#/components/parameters/Ulid'}], requestBody: {$ref: '#/components/requestBodies/JsonObject'}, responses: {'201': {$ref: '#/components/responses/Success'}}}
+  /chat-sessions/{id}/close:
+    post: {tags: [Chat], summary: Tutup chat, parameters: [{$ref: '#/components/parameters/Ulid'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/dashboard:
+    get: {tags: [Admin], summary: Statistik dashboard, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/residents:
+    get: {tags: [Admin], summary: Daftar dan cari warga, responses: {'200': {$ref: '#/components/responses/Success'}}}
+    post: {tags: [Admin], summary: Tambah warga, requestBody: {$ref: '#/components/requestBodies/Resident'}, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/residents/{id}:
+    get: {tags: [Admin], summary: Detail warga, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+    patch: {tags: [Admin], summary: Ubah warga, parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {$ref: '#/components/requestBodies/Resident'}, responses: {'200': {$ref: '#/components/responses/Success'}}}
+    delete: {tags: [Admin], summary: Soft-delete warga, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/households/{id}:
+    get: {tags: [Admin], summary: Detail keluarga, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+    patch: {tags: [Admin], summary: Ubah keluarga, parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {$ref: '#/components/requestBodies/JsonObject'}, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/households:
+    post: {tags: [Admin], summary: Buat keluarga, requestBody: {$ref: '#/components/requestBodies/JsonObject'}, responses: {'201': {$ref: '#/components/responses/Success'}}}
+  /admin/news:
+    get: {tags: [Admin], summary: Semua berita, responses: {'200': {$ref: '#/components/responses/Success'}}}
+    post: {tags: [Admin], summary: Buat berita, requestBody: {$ref: '#/components/requestBodies/JsonObject'}, responses: {'201': {$ref: '#/components/responses/Success'}}}
+  /admin/news/{id}:
+    patch: {tags: [Admin], summary: Ubah berita, parameters: [{$ref: '#/components/parameters/Id'}], requestBody: {$ref: '#/components/requestBodies/JsonObject'}, responses: {'200': {$ref: '#/components/responses/Success'}}}
+    delete: {tags: [Admin], summary: Arsip/soft-delete berita, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/news/{id}/publish:
+    post: {tags: [Admin], summary: Publish berita, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/letter-requests:
+    get: {tags: [Admin], summary: Semua pengajuan surat, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/letter-requests/{id}:
+    get: {tags: [Admin], summary: Detail surat, parameters: [{$ref: '#/components/parameters/Ulid'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/letter-requests/{id}/{action}:
+    post: {tags: [Admin], summary: Review/approve/reject/complete surat, parameters: [{$ref: '#/components/parameters/Ulid'}, {name: action, in: path, required: true, schema: {enum: [review, approve, reject, complete]}}], requestBody: {$ref: '#/components/requestBodies/JsonObject'}, responses: {'200': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}}}
+  /admin/billing-periods:
+    get: {tags: [Admin], summary: Daftar periode iuran, responses: {'200': {$ref: '#/components/responses/Success'}}}
+    post: {tags: [Admin], summary: Buat periode, requestBody: {$ref: '#/components/requestBodies/JsonObject'}, responses: {'201': {$ref: '#/components/responses/Success'}}}
+  /admin/billing-periods/{id}/publish:
+    post: {tags: [Admin], summary: Publish periode dan generate tagihan idempotent, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/dues-bills:
+    get: {tags: [Admin], summary: Daftar tagihan, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/dues-bills/{id}/{action}:
+    post: {tags: [Admin], summary: Tandai bayar/belum bayar, parameters: [{$ref: '#/components/parameters/Id'}, {name: action, in: path, required: true, schema: {enum: [mark-paid, mark-unpaid]}}], requestBody: {$ref: '#/components/requestBodies/JsonObject'}, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/dues-bills/notify:
+    post: {tags: [Admin], summary: Buat notifikasi tagihan bulk, requestBody: {content: {application/json: {schema: {type: object, required: [bill_ids], properties: {bill_ids: {type: array, maxItems: 500, items: {type: integer}}}}}}}, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/media:
+    post: {tags: [Admin], summary: Upload foto/PDF maksimal 10 MB, requestBody: {content: {multipart/form-data: {schema: {type: object, required: [file], properties: {file: {type: string, format: binary}}}}}}, responses: {'201': {$ref: '#/components/responses/Success'}}}
+  /admin/chat-sessions:
+    get: {tags: [Admin, Chat], summary: Antrean dan sesi chat, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /admin/chat-sessions/{id}/assign:
+    post: {tags: [Admin, Chat], summary: Assign sesi secara transactional, parameters: [{$ref: '#/components/parameters/Ulid'}], responses: {'200': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}}}
+  /admin/presence:
+    patch: {tags: [Admin, Chat], summary: Ubah presence admin, requestBody: {content: {application/json: {schema: {type: object, required: [status], properties: {status: {enum: [OFFLINE, ONLINE, BUSY]}}}}}}, responses: {'200': {$ref: '#/components/responses/Success'}}}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  parameters:
+    Id: {name: id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    Ulid: {name: id, in: path, required: true, schema: {type: string, minLength: 26, maxLength: 26}}
+  schemas:
+    Nik: {type: string, pattern: '^[0-9]{16}$'}
+    Error: {type: object, required: [error], properties: {error: {type: object, required: [code, message], properties: {code: {type: string}, message: {type: string}, fields: {type: object}}}, request_id: {type: string}}}
+    Envelope: {type: object, properties: {data: {}, meta: {type: object}, request_id: {type: string}}}
+  requestBodies:
+    Register: {required: true, content: {application/json: {schema: {type: object, required: [username, phone_e164, password], properties: {username: {type: string, minLength: 3}, phone_e164: {type: string, pattern: '^\+[1-9][0-9]{7,14}$'}, password: {type: string, format: password, minLength: 12}}}}}}
+    Challenge: {required: true, content: {application/json: {schema: {type: object, required: [challenge_id], properties: {challenge_id: {type: string, minLength: 26, maxLength: 26}}}}}}
+    JsonObject: {content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+    Resident: {content: {application/json: {schema: {type: object, properties: {nik: {$ref: '#/components/schemas/Nik'}, full_name: {type: string}, address: {type: string}, gender: {enum: [MALE, FEMALE]}}}}}}
+    ResidentProfile: {required: true, content: {application/json: {schema: {type: object, required: [nik, full_name, family_card_number, address, gender], properties: {nik: {$ref: '#/components/schemas/Nik'}, full_name: {type: string}, family_card_number: {$ref: '#/components/schemas/Nik'}, address: {type: string}, gender: {enum: [MALE, FEMALE]}, birth_place: {type: string}, birth_date: {type: string, format: date}, religion: {type: string}, marital_status: {type: string}, occupation: {type: string}}}}}}
+  responses:
+    Success: {description: Berhasil, content: {application/json: {schema: {$ref: '#/components/schemas/Envelope'}}}}
+    Token: {description: Token berhasil diterbitkan, content: {application/json: {schema: {$ref: '#/components/schemas/Envelope'}}}}
+    Error: {description: Error terstruktur, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}

@@ -13,7 +13,7 @@ class CitizenController extends Controller
     private function resident(Request $r){$u=$this->user($r);return $u->resident_id?DB::table('residents')->where('id',$u->resident_id)->whereNull('deleted_at')->first():null;}
     public function profile(Request $r){
         $resident=$this->resident($r);$household=null;$members=[];
-        if($resident&&$resident->household_id){$household=DB::table('households')->where('id',$resident->household_id)->first();$members=DB::table('residents')->where('household_id',$resident->household_id)->whereNull('deleted_at')->where('is_active',true)->get();}
+        if($resident&&$resident->household_id){$household=DB::table('households')->where('id',$resident->household_id)->first();$resident->family_card_number=$household->family_card_number??null;$members=DB::table('residents')->where('household_id',$resident->household_id)->whereNull('deleted_at')->where('is_active',true)->get();}
         return ApiResponse::success(['user'=>$this->user($r),'resident'=>$resident,'household'=>$household,'members'=>$members]);
     }
     public function updateProfile(Request $r){
@@ -53,12 +53,19 @@ class CitizenController extends Controller
         });
     }
     public function linkResident(Request $r){
-        $u=$this->user($r); if($u->resident_id)return ApiResponse::error('ALREADY_LINKED','Akun sudah ditautkan.',409);
-        $v=$r->validate(['nik'=>'required|digits:16','family_card_number'=>'required|digits:16']);
+        $u=$this->user($r);
+        $v=$r->validate(['nik'=>'required|digits:16','family_card_number'=>'required|digits:16','photo_media_id'=>'sometimes|nullable|exists:media_files,id']);
         $resident=DB::table('residents as r')->join('households as h','h.id','=','r.household_id')->where('r.nik',$v['nik'])->where('h.family_card_number',$v['family_card_number'])->select('r.id')->first();
         if(!$resident)return ApiResponse::error('LINK_NOT_FOUND','Data warga dan keluarga tidak cocok.',404);
-        if(DB::table('users')->where('resident_id',$resident->id)->exists())return ApiResponse::error('RESIDENT_ALREADY_LINKED','Warga sudah ditautkan ke akun lain.',409);
-        DB::table('users')->where('id',$u->id)->update(['resident_id'=>$resident->id,'updated_at'=>now()]); return ApiResponse::success(['linked'=>true]);
+        if($u->resident_id && (int)$u->resident_id !== (int)$resident->id)return ApiResponse::error('ALREADY_LINKED','Akun sudah ditautkan ke data warga lain.',409);
+        $linkedUser=DB::table('users')->where('resident_id',$resident->id)->first(['id','username']);
+        if($linkedUser && (int)$linkedUser->id !== (int)$u->id)return ApiResponse::error('RESIDENT_ALREADY_LINKED','Warga sudah ditautkan ke akun lain.',409);
+        if(!empty($v['photo_media_id'])&&!DB::table('media_files')->where('id',$v['photo_media_id'])->where('uploaded_by',$u->id)->exists())return ApiResponse::error('INVALID_PHOTO','Foto tidak diunggah oleh akun ini.',422);
+        DB::transaction(function()use($u,$resident,$v){
+            if(!$u->resident_id)DB::table('users')->where('id',$u->id)->update(['resident_id'=>$resident->id,'updated_at'=>now()]);
+            if(!empty($v['photo_media_id']))DB::table('residents')->where('id',$resident->id)->update(['photo_media_id'=>$v['photo_media_id'],'updated_at'=>now()]);
+        });
+        return ApiResponse::success(['linked'=>true,'resident_id'=>$resident->id]);
     }
     public function household(Request $r){
         $resident=$this->resident($r); if(!$resident)return ApiResponse::error('PROFILE_NOT_LINKED','Akun belum ditautkan.',409);

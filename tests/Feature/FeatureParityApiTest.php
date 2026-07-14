@@ -34,4 +34,21 @@ class FeatureParityApiTest extends TestCase
         $this->withToken($at)->getJson("/api/v1/chat-sessions/$id/messages")->assertOk()->assertJsonPath('data.0.body','Halo');
         $this->withToken($at)->postJson("/api/v1/chat-sessions/$id/close")->assertOk();
     }
+
+    public function test_citizen_photo_is_attached_when_linking_existing_resident():void
+    {
+        $hh=DB::table('households')->insertGetId(['family_card_number'=>'3273010101010001','address'=>'Alamat','created_at'=>now(),'updated_at'=>now()]);
+        $resident=DB::table('residents')->insertGetId(['nik'=>'3273010101010001','household_id'=>$hh,'full_name'=>'Budi','address'=>'Alamat','is_active'=>true,'created_at'=>now(),'updated_at'=>now()]);
+        [$citizen,$token]=$this->userToken('CITIZEN','photo.link.test');
+        $media=DB::table('media_files')->insertGetId(['disk'=>'local','path'=>'uploads/photo-link-test.jpg','original_name'=>'photo.jpg','mime_type'=>'image/jpeg','size_bytes'=>100,'checksum_sha256'=>str_repeat('a',64),'uploaded_by'=>$citizen->id,'created_at'=>now(),'updated_at'=>now()]);
+
+        $this->withToken($token)->postJson('/api/v1/me/resident-link',[
+            'nik'=>'3273010101010001',
+            'family_card_number'=>'3273010101010001',
+            'photo_media_id'=>$media,
+        ])->assertOk()->assertJsonPath('data.linked',true);
+
+        $this->assertDatabaseHas('users',['id'=>$citizen->id,'resident_id'=>$resident]);
+        $this->assertDatabaseHas('residents',['id'=>$resident,'photo_media_id'=>$media]);
+    }
 }

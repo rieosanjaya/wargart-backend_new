@@ -149,7 +149,7 @@ components:
     Error: {type: object, required: [error], properties: {error: {type: object, required: [code, message], properties: {code: {type: string}, message: {type: string}, fields: {type: object}}}, request_id: {type: string}}}
     Envelope: {type: object, properties: {data: {}, meta: {type: object}, request_id: {type: string}}}
   requestBodies:
-    Register: {required: true, content: {application/json: {schema: {type: object, required: [username, phone_e164, password], properties: {username: {type: string, minLength: 3}, phone_e164: {type: string, pattern: '^\+[1-9][0-9]{7,14}$'}, password: {type: string, format: password, minLength: 12}}}}}}
+    Register: {required: true, content: {application/json: {schema: {type: object, required: [username, phone_e164, password], properties: {username: {type: string, minLength: 3}, phone_e164: {type: string, pattern: '^\+[1-9][0-9]{7,14}$'}, password: {type: string, format: password, minLength: 6}}}}}}
     Challenge: {required: true, content: {application/json: {schema: {type: object, required: [challenge_id], properties: {challenge_id: {type: string, minLength: 26, maxLength: 26}}}}}}
     JsonObject: {content: {application/json: {schema: {type: object, additionalProperties: true}}}}
     Resident: {content: {application/json: {schema: {type: object, properties: {nik: {$ref: '#/components/schemas/Nik'}, full_name: {type: string}, address: {type: string}, gender: {enum: [MALE, FEMALE]}}}}}}
